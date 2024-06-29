@@ -1,0 +1,151 @@
+// Rhino Feeding Robot
+// Nathan Orr
+// FSE 100
+// Introduction to Engineering
+
+#include <Servo.h>
+#include <IRremote.h>
+
+int trig_front = 11;
+int trig_rear = 8;
+int echo_front = 10;
+int echo_rear = 9;
+int RECV_PIN = 7;
+int const TRUE = 1;
+int const FALSE = 0;
+float frontDist;
+float rearDist;
+float dist_front;
+float dist_rear;
+float time1;
+float time2;
+bool StartOff;
+bool StartOn;
+Servo DumpbedServo;
+
+void setup()
+{
+  StartOff = 0;
+  StartOn = 1;
+  pinMode(trig_front, OUTPUT);
+  pinMode(trig_rear, OUTPUT);
+  pinMode(echo_front, INPUT);
+  pinMode(echo_rear, INPUT);
+  pinMode(6, OUTPUT);
+  DumpbedServo.attach(6);
+  Serial.begin(9600);
+  Serial.println("Enabling IRin");
+  IrReceiver.begin(RECV_PIN);
+  pinMode(2, OUTPUT);
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
+}
+
+void loop ()
+{
+  frontDist = checkfrontdist (trig_front, echo_front);
+  Serial.print("Front distance to object: ");
+  Serial.println(frontDist);
+  delay(100);
+  rearDist = checkreardist (trig_rear, echo_rear);
+  Serial.print("Rear distance to object: ");
+  Serial.println(rearDist);
+  delay(100);
+  
+  if (frontDist > 24 && rearDist > 24) {
+    if (IrReceiver.decode()) {
+      int value = IrReceiver.decodedIRData.command;
+      Serial.println(value);
+      if (value == 1) {
+        moveRobot(1, 0, 1, 0); // forward
+      } else if (value == 4) {
+        moveRobot(0, 1, 1, 0); // left
+      } else if (value == 6) {
+        moveRobot(1, 0, 0, 1); // right
+      } else if (value == 9) {
+        moveRobot(0, 1, 0, 1); // reverse
+      } else if (value == 5) {
+        moveDumpbed();
+      } else {
+        moveRobot(0, 0, 0, 0); // All Motors Halt
+      }
+      IrReceiver.resume(); // Receive the next value
+    }
+  } else {
+    moveRobot(0, 0, 0, 0); // Halt all motors if conditions not met
+  }
+}
+
+float checkfrontdist(int trig_front, int echo_front) {
+  digitalWrite(trig_front, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig_front, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig_front, LOW);
+  time1 = pulseIn(echo_front, HIGH);
+  dist_front = time1/148.1;
+  
+  return dist_front;
+}
+
+float checkreardist(int trig_front, int echo_front) {
+  digitalWrite(trig_rear, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig_rear, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig_rear, LOW);
+  time2 = pulseIn(echo_rear, HIGH);
+  dist_rear = time2/148.1;
+  
+  return dist_rear;
+}
+
+void moveRobot (int left1, int left2, int right1, int right2) {
+  digitalWrite(2, left1);
+  digitalWrite(3, left2);
+  digitalWrite(4, right1);
+  digitalWrite(5, right2);
+}
+  
+void moveDumpbed () 
+{
+  delay(100);
+  DumpbedServo.write(0);
+  delay(500);
+  DumpbedServo.write(75);
+  delay(5000);
+  DumpbedServo.write(0);
+  delay(1000);
+}
+
+void handleOperatorCommunication() {
+ // messaging and operator communications.
+  String strVar;
+
+  strVar = Serial.readString();
+  
+  if (strVar == "StartOn")
+  {
+    
+    StartOn = TRUE;
+    StartOff = FALSE;
+    
+  }
+    else if (strVar == "StartOff") 
+    {
+ 
+      StartOn = FALSE;
+      StartOff = TRUE;
+    }
+  if (StartOn)
+  {
+   Serial.println ("Robot start allowed received");
+  }
+  else
+  {
+ 	  Serial.println ("Robot start not allowed received");
+  }
+  
+  
+}
